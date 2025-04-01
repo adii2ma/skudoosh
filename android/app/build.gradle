@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.chaquo.python"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -84,6 +85,22 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+
+        // Add Chaquopy configuration
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
+
+        python {
+            pip {
+                // Install required Python packages
+                install "flask"
+                install "numpy"
+                install "tensorflow-lite"
+                // Note: fast_whisper would need to be installed here as well,
+                // but it's complex with dependencies. Consider using a pre-built model.
+            }
+        }
     }
     signingConfigs {
         debug {
