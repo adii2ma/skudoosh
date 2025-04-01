@@ -131,9 +131,8 @@ dependencies {
         implementation jscFlavor
     }
 
-    // Add dependencies for audio recording and file system
+    // Add dependencies for file system and database
     implementation "com.facebook.react:react-native-fs:2.20.0"
-    implementation "com.facebook.react:react-native-audio:4.3.0"
     implementation "com.facebook.react:react-native-sqlite-storage:6.0.1"
     
     // Add TensorFlow.js dependencies
