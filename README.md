@@ -1,4 +1,4 @@
-# MyVoiceApp - Voice Monitoring and Analysis System
+# SKUDOOSH - Voice Monitoring and Analysis System
 
 A React Native application that continuously monitors speech, transcribes it using Insanely Fast Whisper, extracts keywords, and provides searchable logs with timestamps.
 
