@@ -1,97 +1,174 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# MyVoiceApp - Voice Monitoring and Analysis System
 
-# Getting Started
+A React Native application that continuously monitors speech, transcribes it using Insanely Fast Whisper, extracts keywords, and provides searchable logs with timestamps.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Project Overview
 
-## Step 1: Start Metro
+This application runs a Python-based transcription server within an Android app, continuously listens to speech, processes it through Whisper for accurate transcription, and stores the results in a local database for later analysis.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Core Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+- Real-time speech monitoring
+- High-accuracy transcription using Insanely Fast Whisper
+- Keyword extraction
+- Searchable conversation logs
+- Date-based filtering
+- Continuous recording mode
+- Built-in Python server using Chaquopy
 
-```sh
-# Using npm
-npm start
+## Project Structure
 
-# OR using Yarn
-yarn start
+### React Native Components
+
+- `App.js` - Root component, sets up navigation and global styles
+- `/src/screens/`
+  - `voicescreen.js` - Main recording interface
+  - `logsscreen.js` - Search and view conversation history
+
+### Services
+
+- `/src/services/`
+  - `audio.js` - Handles audio recording and chunking
+  - `api.js` - API client for communicating with Python backend
+  - `voice.js` - Voice recognition service
+  - `pythonServer.js` - Interface for Python server management
+
+### Python Backend
+
+- `/android/app/src/main/python/`
+  - `main.py` - Flask server implementation
+  - `utils.py` - Core functionality (transcription, keyword extraction)
+  - `db.py` - Database schema and operations
+  - `server_bridge.py` - Bridge between React Native and Python
+
+### Native Modules
+
+- `/android/app/src/main/java/com/myvoiceapp/`
+  - `PythonServerModule.java` - Native module for Python integration
+  - `PythonServerPackage.java` - Package registration
+  - `MainApplication.java` - Application setup
+
+## Setup and Installation
+
+### Prerequisites
+
+1. Node.js and npm
+2. React Native development environment
+3. Android Studio
+4. Python 3.8 or higher
+
+### Dependencies Installation
+
+```bash
+# Install Node dependencies
+npm install
+
+# Install Python dependencies (handled by Chaquopy in build.gradle)
+cd android
+./gradlew installDebug
 ```
 
-## Step 2: Build and run your app
+### Build Configuration
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+1. Update Android build files:
+   - `android/build.gradle`
+   - `android/app/build.gradle`
 
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+2. Configure Python packages in `android/app/build.gradle`:
+```gradle
+python {
+    pip {
+        install "flask"
+        install "numpy"
+        install "insanely-fast-whisper==0.0.15"
+        install "torch==2.0.1"
+        install "transformers>=4.35.0"
+        install "optimum>=1.12.0"
+        install "accelerate>=0.20.3"
+    }
+}
 ```
 
-### iOS
+### Building the APK
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
+1. Generate debug APK:
+```bash
+cd android
+./gradlew assembleDebug
 ```
 
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
+2. Generate release APK:
+```bash
+cd android
+./gradlew assembleRelease
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+The APK will be located at:
+- Debug: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Release: `android/app/build/outputs/apk/release/app-release.apk`
 
-```sh
-# Using npm
-npm run ios
+## Technical Details
 
-# OR using Yarn
-yarn ios
+### Speech Processing Flow
+
+1. Audio Recording:
+   - Captures audio in 5-second chunks
+   - Uses VAD for silence detection
+   - Saves as WAV files (16kHz, mono)
+
+2. Transcription:
+   - Processes audio through Insanely Fast Whisper
+   - Uses distil-whisper/large-v2 model for mobile optimization
+   - Returns text and confidence scores
+
+3. Storage:
+   - SQLite database for conversation storage
+   - Timestamps and keyword indexing
+   - Full-text search capabilities
+
+### Database Schema
+
+```sql
+-- Conversations table
+CREATE TABLE conversations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Keywords table
+CREATE TABLE recognized_keywords (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    keyword TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    conversation_id INTEGER,
+    recognized_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversation_id) REFERENCES conversations (id)
+);
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+## Performance Considerations
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+- Audio is processed in chunks to manage memory usage
+- Uses a smaller Whisper model optimized for mobile
+- Database indices for efficient searching
+- Background thread for Python server
 
-## Step 3: Modify your app
+## Known Limitations
 
-Now that you have successfully run the app, let's make changes!
+- High battery usage in continuous mode
+- Large APK size due to included models
+- CPU-intensive transcription process
+- Android-only (iOS not supported)
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Future Improvements
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+- Implement VAD optimization
+- Add cloud backup option
+- Reduce model size
+- Add speaker diarization
+- Implement iOS support
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+## License
 
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+MIT License - See LICENSE file for details
