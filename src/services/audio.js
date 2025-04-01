@@ -7,24 +7,27 @@ class AudioService {
     this.isRecording = false;
     this.currentFilePath = null;
     this.chunkDuration = 5000; // 5 seconds per chunk
-    this.silenceThreshold = 0.2; // Silence threshold for VAD
-    this.silenceDuration = 1000; // 1 second of silence to consider speech ended
     this.onTranscriptionCallback = null;
     this.timerId = null;
   }
 
   async initialize() {
-    await AudioRecorder.requestAuthorization();
-    AudioRecorder.onFinished = this.onFinishRecording;
+    try {
+      await AudioRecorder.requestAuthorization();
+      AudioRecorder.onFinished = this.onFinishRecording;
+      console.log('Audio service initialized successfully');
+    } catch (error) {
+      console.error('Error initializing audio service:', error);
+    }
   }
 
   onFinishRecording = async (data) => {
     if (data.status === "OK" && data.audioFileURL) {
       try {
-        // Read the file as binary data
+        // Read the file as base64
         const audioData = await RNFS.readFile(data.audioFileURL, 'base64');
         
-        // Send to backend for processing
+        // Send to API for transcription
         const result = await sendAudioForTranscription(audioData);
         
         if (this.onTranscriptionCallback) {
@@ -48,10 +51,9 @@ class AudioService {
     try {
       this.currentFilePath = `${AudioUtils.DocumentDirectoryPath}/audio_chunk_${Date.now()}.wav`;
       
-      // Configure audio recording
       await AudioRecorder.prepareRecordingAtPath(this.currentFilePath, {
-        SampleRate: 16000, // Whisper works best with 16kHz
-        Channels: 1, // Mono
+        SampleRate: 16000,
+        Channels: 1,
         AudioQuality: "High",
         AudioEncoding: "wav",
         OutputFormat: "wav",
@@ -59,7 +61,6 @@ class AudioService {
       
       await AudioRecorder.startRecording();
       
-      // Set a timer to finish this chunk after the specified duration
       this.timerId = setTimeout(() => {
         if (this.isRecording) {
           AudioRecorder.stopRecording();
@@ -76,7 +77,7 @@ class AudioService {
     try {
       this.isRecording = true;
       await this.startNewChunk();
-      console.log('Started audio recording');
+      console.log('Started continuous audio recording');
     } catch (error) {
       this.isRecording = false;
       console.error('Error starting recording:', error);

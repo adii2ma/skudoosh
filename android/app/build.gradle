@@ -87,11 +87,12 @@ android {
         versionCode 1
         versionName "1.0"
 
-        // Reduce architectures for faster build
+        // Only build for arm64-v8a for faster builds
         ndk {
-            abiFilters "arm64-v8a"  // Only build for the most common architecture
+            abiFilters "arm64-v8a"
         }
     }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -100,17 +101,23 @@ android {
             keyPassword 'android'
         }
     }
+
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
+    }
+
+    // Add build performance optimizations
+    dexOptions {
+        preDexLibraries true
+        maxProcessCount 8
+        javaMaxHeapSize "4g"
     }
 }
 
@@ -124,8 +131,30 @@ dependencies {
         implementation jscFlavor
     }
 
-    // Add dependencies for audio recording
+    // Add dependencies for audio recording and file system
     implementation "com.facebook.react:react-native-fs:2.20.0"
-    // Temporarily comment out track player to test build
-    // implementation project(':react-native-track-player')
+    implementation "com.facebook.react:react-native-audio:4.3.0"
+    implementation "com.facebook.react:react-native-sqlite-storage:6.0.1"
+    
+    // Add TensorFlow.js dependencies
+    implementation "org.tensorflow:tensorflow-lite:2.9.0"
+    implementation "org.tensorflow:tensorflow-lite-support:0.4.2"
+}
+
+buildscript {
+    ext {
+        buildToolsVersion = "33.0.0"
+        minSdkVersion = 21
+        compileSdkVersion = 33
+        targetSdkVersion = 33
+        ndkVersion = "23.1.7779620"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:7.4.2")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+    }
 }

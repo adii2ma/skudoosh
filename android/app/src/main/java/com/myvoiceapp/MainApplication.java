@@ -6,10 +6,7 @@ import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
 import com.facebook.soloader.SoLoader;
-import com.myvoiceapp.PythonServerPackage;
-import com.reactnativetrackplayer.TrackPlayerPackage;
 import java.util.List;
-import java.util.Arrays;
 
 public class MainApplication extends Application implements ReactApplication {
 
@@ -23,9 +20,6 @@ public class MainApplication extends Application implements ReactApplication {
         @Override
         protected List<ReactPackage> getPackages() {
           List<ReactPackage> packages = new PackageList(this).getPackages();
-          // Add the PythonServerPackage and TrackPlayerPackage
-          packages.add(new PythonServerPackage());
-          packages.add(new TrackPlayerPackage());
           return packages;
         }
 
@@ -40,13 +34,9 @@ public class MainApplication extends Application implements ReactApplication {
     return mReactNativeHost;
   }
 
-  public static ReactNativeHost getReactNativeHost(Application application) {
-    return ((MainApplication) application).getReactNativeHost();
-  }
-
   @Override
   public void onCreate() {
     super.onCreate();
-    SoLoader.init(this, /* native exopackage */ false);
+    SoLoader.init(this, false);
   }
 }

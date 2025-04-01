@@ -10,14 +10,17 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-community/audio-toolkit": "^2.0.3",
     "@react-native-voice/voice": "^3.2.4",
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tensorflow/tfjs-react-native": "^1.0.0",
     "axios": "^1.8.4",
     "react": "19.0.0",
     "react-native": "0.78.1",
     "react-native-audio": "^4.3.0",
     "react-native-fs": "^2.20.0",
-    "@tensorflow/tfjs": "^4.13.0",
-    "@tensorflow/tfjs-react-native": "^0.8.0"
+    "react-native-sqlite-storage": "^6.0.1",
+    "react-native-track-player": "^4.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

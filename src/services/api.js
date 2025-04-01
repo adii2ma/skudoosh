@@ -1,32 +1,72 @@
 import axios from 'axios';
 import keywordExtractor from './keywordExtractor';
+import databaseService from './database';
 
-// Use localhost with Android's special loopback address for the emulator
-// In real device, this will point to the Flask server running within the app
-const BASE_URL = 'http://10.0.2.2:5000/api';
+// AssemblyAI API configuration
+const ASSEMBLY_AI_API_KEY = 'YOUR_ASSEMBLY_AI_API_KEY';
+const ASSEMBLY_AI_UPLOAD_URL = 'https://api.assemblyai.com/v2/upload';
+const ASSEMBLY_AI_TRANSCRIPT_URL = 'https://api.assemblyai.com/v2/transcript';
 
 export const sendAudioForTranscription = async (audioData) => {
   try {
-    // First send the audio data for transcription
-    const response = await axios.post(`${BASE_URL}/transcribe`, {
-      audio: audioData, // This is already base64 encoded
-      format: 'wav',
-      sampleRate: 16000,
+    // First, upload the audio file
+    const uploadResponse = await axios.post(ASSEMBLY_AI_UPLOAD_URL, audioData, {
+      headers: {
+        'Authorization': ASSEMBLY_AI_API_KEY,
+        'Content-Type': 'audio/wav'
+      }
     });
-    
-    // Get the transcribed text and conversation ID
-    const { text, id } = response.data;
+
+    const audioUrl = uploadResponse.data.upload_url;
+
+    // Start transcription
+    const transcriptResponse = await axios.post(ASSEMBLY_AI_TRANSCRIPT_URL, {
+      audio_url: audioUrl,
+      language_code: 'en',
+      punctuate: true
+    }, {
+      headers: {
+        'Authorization': ASSEMBLY_AI_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const transcriptId = transcriptResponse.data.id;
+
+    // Poll for transcription completion
+    let transcript = null;
+    while (!transcript) {
+      const pollingResponse = await axios.get(`${ASSEMBLY_AI_TRANSCRIPT_URL}/${transcriptId}`, {
+        headers: {
+          'Authorization': ASSEMBLY_AI_API_KEY
+        }
+      });
+
+      if (pollingResponse.data.status === 'completed') {
+        transcript = pollingResponse.data;
+        break;
+      } else if (pollingResponse.data.status === 'error') {
+        throw new Error('Transcription failed');
+      }
+
+      // Wait 1 second before polling again
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    // Get the transcribed text
+    const text = transcript.text;
     
     // Extract keywords using TensorFlow.js
     const keywords = await keywordExtractor.extractKeywords(text);
     
-    // Send the keywords back to the server to be stored with the conversation
-    await storeKeywords(id, keywords);
+    // Store in local SQLite database
+    const conversationId = await databaseService.storeConversation(text, keywords);
     
     // Return the complete result
     const result = {
-      ...response.data,
-      keywords: keywords.map(k => k.word) // Send just the words, not the scores
+      id: conversationId,
+      text,
+      keywords: keywords.map(k => k.word)
     };
     
     console.log('Transcription Result:', result);
@@ -37,23 +77,9 @@ export const sendAudioForTranscription = async (audioData) => {
   }
 };
 
-export const storeKeywords = async (conversationId, keywords) => {
-  try {
-    const response = await axios.post(`${BASE_URL}/store-keywords`, {
-      conversation_id: conversationId,
-      keywords: keywords
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error storing keywords:', error);
-    throw error;
-  }
-};
-
 export const getKeywordsFromDB = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/keywords`);
-    return response.data;
+    return await databaseService.getKeywords();
   } catch (error) {
     console.error('Error fetching keywords:', error);
     throw error;
@@ -62,10 +88,7 @@ export const getKeywordsFromDB = async () => {
 
 export const searchConversationsByKeyword = async (keyword) => {
   try {
-    const response = await axios.get(`${BASE_URL}/search`, {
-      params: { keyword }
-    });
-    return response.data;
+    return await databaseService.searchConversations(keyword);
   } catch (error) {
     console.error('Error searching conversations:', error);
     throw error;
@@ -74,13 +97,7 @@ export const searchConversationsByKeyword = async (keyword) => {
 
 export const getFilteredLogs = async (startDate, endDate, keyword) => {
   try {
-    const params = {};
-    if (startDate) params.start_date = startDate;
-    if (endDate) params.end_date = endDate;
-    if (keyword) params.keyword = keyword;
-    
-    const response = await axios.get(`${BASE_URL}/logs`, { params });
-    return response.data;
+    return await databaseService.getFilteredLogs(startDate, endDate, keyword);
   } catch (error) {
     console.error('Error fetching filtered logs:', error);
     throw error;
