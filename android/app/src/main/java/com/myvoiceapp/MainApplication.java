@@ -6,7 +6,8 @@ import com.facebook.react.ReactNativeHost;
 import com.facebook.react.ReactPackage;
 import com.facebook.react.shell.MainReactPackage;
 import com.facebook.soloader.SoLoader;
-import com.myvoiceapp.PythonServerPackage; // Add this import
+import com.myvoiceapp.PythonServerPackage;
+import com.reactnativetrackplayer.TrackPlayerPackage;
 import java.util.List;
 import java.util.Arrays;
 
@@ -22,8 +23,9 @@ public class MainApplication extends Application implements ReactApplication {
         @Override
         protected List<ReactPackage> getPackages() {
           List<ReactPackage> packages = new PackageList(this).getPackages();
-          // Add the PythonServerPackage
+          // Add the PythonServerPackage and TrackPlayerPackage
           packages.add(new PythonServerPackage());
+          packages.add(new TrackPlayerPackage());
           return packages;
         }
 

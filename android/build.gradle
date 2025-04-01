@@ -1,25 +1,32 @@
 buildscript {
     ext {
-        buildToolsVersion = "35.0.0"
+        buildToolsVersion = "33.0.0"
         minSdkVersion = 24
-        compileSdkVersion = 35
-        targetSdkVersion = 35
-        ndkVersion = "27.1.12297006"
-        kotlinVersion = "2.0.21"
+        compileSdkVersion = 33
+        targetSdkVersion = 33
+        ndkVersion = "25.1.8937393"
+        kotlinVersion = "1.8.0"
     }
     repositories {
         google()
         mavenCentral()
-        maven { url "https://chaquo.com/maven" }
+        // Temporarily remove Chaquopy repository
+        // maven { url "https://chaquo.com/maven" }
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:8.3.1")
+        classpath("com.android.tools.build:gradle:7.4.2")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-        classpath "com.chaquo.python:gradle:13.0.0"
-     
+        // Temporarily remove Chaquopy dependency
+        // classpath "com.chaquo.python:gradle:12.0.2"
+    }
+}
+
+// Add this to improve build performance
+gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
     }
 }
 
 apply plugin: "com.facebook.react.rootproject"
-apply plugin: 'com.chaquo.python'
