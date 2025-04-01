@@ -4,13 +4,9 @@ import json
 import tempfile
 import subprocess
 from datetime import datetime
-import tensorflow as tf
-import numpy as np
 
 # Import the db module to use the get_db_path function
 from db import get_db_path
-
-MODEL_FILE = 'model.tflite'
 
 def save_audio_to_temp_file(audio_data):
     """
@@ -74,7 +70,7 @@ def transcribe_audio(audio_data):
         audio_data: Raw audio data (base64 decoded)
         
     Returns:
-        tuple: (transcribed_text, keywords)
+        str: transcribed_text
     """
     try:
         # Save audio to a temporary file
@@ -87,54 +83,22 @@ def transcribe_audio(audio_data):
         if os.path.exists(audio_file):
             os.remove(audio_file)
         
-        # Extract keywords from transcribed text
-        keywords = detect_keywords(transcribed_text)
-        
-        return transcribed_text, keywords
+        return transcribed_text
     except Exception as e:
         print(f"Error in transcription: {e}")
-        return f"Transcription error: {str(e)}", []
+        return f"Transcription error: {str(e)}"
 
-def detect_keywords(text):
-    try:
-        # Get the absolute path to the model file
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        model_path = os.path.join(current_dir, MODEL_FILE)
-        
-        # Check if model exists, if not return dummy keywords for testing
-        if not os.path.exists(model_path):
-            print(f"Model file not found at {model_path}, returning sample keywords")
-            # Extract simple keywords based on word frequency
-            words = text.lower().split()
-            # Remove common words and punctuation
-            common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'is', 'am', 'are'}
-            keywords = [word for word in words if word not in common_words and len(word) > 3]
-            # Return top 5 keywords or fewer if not enough
-            return list(set(keywords))[:5]
-        
-        # In real implementation, this would use TensorFlow Lite to detect keywords
-        interpreter = tf.lite.Interpreter(model_path=model_path)
-        interpreter.allocate_tensors()
-
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
-        
-        # Process text for input to model
-        input_text = np.array([text], dtype=np.string_)
-        interpreter.set_tensor(input_details[0]['index'], input_text)
-        interpreter.invoke()
-
-        output_data = interpreter.get_tensor(output_details[0]['index'])
-        return json.loads(output_data[0])
-    except Exception as e:
-        print(f"Error in keyword detection: {e}")
-        # Fallback to simple keyword extraction
-        words = text.lower().split()
-        common_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'is', 'am', 'are'}
-        keywords = [word for word in words if word not in common_words and len(word) > 3]
-        return list(set(keywords))[:5]
-
-def store_conversation_and_keywords(text, keywords):
+def store_conversation(text, keywords=None):
+    """
+    Store conversation text and keywords in the database.
+    
+    Args:
+        text (str): Transcribed text
+        keywords (list, optional): Keywords extracted from text
+    
+    Returns:
+        int: ID of the stored conversation
+    """
     try:
         db_path = get_db_path()
         conn = sqlite3.connect(db_path)
@@ -144,18 +108,65 @@ def store_conversation_and_keywords(text, keywords):
         cursor.execute('INSERT INTO conversations (text) VALUES (?)', (text,))
         conversation_id = cursor.lastrowid
         
-        # Store each keyword with reference to the conversation
+        # Store keywords if provided
+        if keywords:
+            for keyword in keywords:
+                # Check if keyword is a string or dict with 'word' and 'score'
+                if isinstance(keyword, dict) and 'word' in keyword and 'score' in keyword:
+                    word = keyword['word']
+                    confidence = keyword['score']
+                else:
+                    word = str(keyword)
+                    confidence = 1.0
+                    
+                cursor.execute(
+                    'INSERT INTO recognized_keywords (keyword, confidence, conversation_id) VALUES (?, ?, ?)',
+                    (word, confidence, conversation_id)
+                )
+        
+        conn.commit()
+        conn.close()
+        return conversation_id
+    except Exception as e:
+        print(f"Error storing data: {e}")
+        return None
+
+def store_conversation_keywords(conversation_id, keywords):
+    """
+    Store keywords for an existing conversation.
+    
+    Args:
+        conversation_id (int): ID of the conversation
+        keywords (list): List of keywords, can be strings or dicts with 'word' and 'score'
+    
+    Returns:
+        bool: Success status
+    """
+    try:
+        db_path = get_db_path()
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Store each keyword
         for keyword in keywords:
+            # Check if keyword is a string or dict with 'word' and 'score'
+            if isinstance(keyword, dict) and 'word' in keyword and 'score' in keyword:
+                word = keyword['word']
+                confidence = keyword['score']
+            else:
+                word = str(keyword)
+                confidence = 1.0
+                
             cursor.execute(
                 'INSERT INTO recognized_keywords (keyword, confidence, conversation_id) VALUES (?, ?, ?)',
-                (keyword, 1.0, conversation_id)
+                (word, confidence, conversation_id)
             )
         
         conn.commit()
         conn.close()
         return True
     except Exception as e:
-        print(f"Error storing data: {e}")
+        print(f"Error storing keywords: {e}")
         return False
 
 def get_keywords():

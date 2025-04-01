@@ -92,6 +92,8 @@ android {
         }
 
         python {
+            // Point to your new python folder
+            sourceRoot = "../../python_backend"
             pip {
                 // Install required Python packages
                 install "flask"
@@ -99,7 +101,7 @@ android {
                 install "tensorflow-lite"
                 // Note: fast_whisper would need to be installed here as well,
                 // but it's complex with dependencies. Consider using a pre-built model.
-
+           
                 // Add Insanely Fast Whisper and its dependencies
                 install "insanely-fast-whisper==0.0.15"
                 install "torch==2.0.1"

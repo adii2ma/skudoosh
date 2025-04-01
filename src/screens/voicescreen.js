@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, Switch} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, Switch, NativeEventEmitter, NativeModules} from 'react-native';
 import AudioService from '../services/audio';
 import {getKeywordsFromDB, searchConversationsByKeyword} from '../services/api';
 import {startPythonServer, isServerRunning} from '../services/pythonServer';
@@ -48,6 +48,19 @@ const VoiceScreen = ({ navigation }) => {
       }
     };
 
+    // Set up background recording event listeners
+    const eventEmitter = new NativeEventEmitter(NativeModules.RCTDeviceEventEmitter);
+    const startBackgroundSubscription = eventEmitter.addListener('startBackgroundRecording', () => {
+      if (!isRecording) {
+        handleToggleRecording();
+      }
+    });
+    const stopBackgroundSubscription = eventEmitter.addListener('stopBackgroundRecording', () => {
+      if (isRecording) {
+        handleToggleRecording();
+      }
+    });
+
     setupAudio();
     initServer();
     fetchKeywords();
@@ -61,6 +74,8 @@ const VoiceScreen = ({ navigation }) => {
     return () => {
       // Clean up
       AudioService.stopRecording();
+      startBackgroundSubscription.remove();
+      stopBackgroundSubscription.remove();
     };
   }, []);
 
@@ -68,8 +83,14 @@ const VoiceScreen = ({ navigation }) => {
     try {
       if (isRecording) {
         await AudioService.stopRecording();
+        // Stop background service
+        const intent = new Intent('STOP_RECORDING');
+        NativeModules.AudioRecordingService.startService(intent);
       } else {
         await AudioService.startRecording();
+        // Start background service
+        const intent = new Intent('START_RECORDING');
+        NativeModules.AudioRecordingService.startService(intent);
       }
       setIsRecording(!isRecording);
     } catch (error) {
@@ -79,7 +100,6 @@ const VoiceScreen = ({ navigation }) => {
 
   const handleToggleContinuous = (value) => {
     setContinuousMode(value);
-    // For continuous mode, we'll rely on the chunk-based recording in AudioService
     if (value && !isRecording) {
       handleToggleRecording();
     }

@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from utils import transcribe_audio, store_conversation_and_keywords, get_keywords, search_conversations_by_keyword, filter_logs_by_date_and_keyword
+from utils import transcribe_audio, store_conversation, get_keywords, search_conversations_by_keyword, filter_logs_by_date_and_keyword
 from db import initialize_db
 import os
 import base64
@@ -26,22 +26,46 @@ def transcribe():
             print(f"Format: {data.get('format', 'unknown')}")
             print(f"Sample Rate: {data.get('sampleRate', 'unknown')}")
             
-            # Process with Whisper
-            full_text, keywords = transcribe_audio(audio_data)
+            # Process with Whisper - only transcription, no keyword extraction
+            transcribed_text = transcribe_audio(audio_data)
             
-            # Store results
-            success = store_conversation_and_keywords(full_text, keywords)
+            # If keywords are sent from the frontend, store them too
+            keywords = data.get('keywords', None)
+            conversation_id = store_conversation(transcribed_text, keywords)
             
             return jsonify({
-                'success': success,
-                'text': full_text,
-                'keywords': keywords
+                'success': conversation_id is not None,
+                'id': conversation_id,
+                'text': transcribed_text
             })
         else:
             return jsonify({'error': 'No audio data provided'}), 400
             
     except Exception as e:
         print(f"Error in transcribe endpoint: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/store-keywords', methods=['POST'])
+def store_keywords():
+    """
+    Store keywords for an existing conversation.
+    This endpoint receives keywords extracted by TensorFlow.js
+    """
+    try:
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        keywords = data.get('keywords', [])
+        
+        if not conversation_id:
+            return jsonify({'error': 'No conversation_id provided'}), 400
+            
+        # Update the conversation with keywords
+        from utils import store_conversation_keywords
+        success = store_conversation_keywords(conversation_id, keywords)
+        
+        return jsonify({'success': success})
+    except Exception as e:
+        print(f"Error in store-keywords endpoint: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/keywords', methods=['GET'])

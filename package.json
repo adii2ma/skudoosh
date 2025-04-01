@@ -13,7 +13,11 @@
     "@react-native-voice/voice": "^3.2.4",
     "axios": "^1.8.4",
     "react": "19.0.0",
-    "react-native": "0.78.1"
+    "react-native": "0.78.1",
+    "react-native-audio": "^4.3.0",
+    "react-native-fs": "^2.20.0",
+    "@tensorflow/tfjs": "^4.13.0",
+    "@tensorflow/tfjs-react-native": "^0.8.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
