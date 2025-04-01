@@ -1,3 +1,4 @@
+/*
 import { AudioRecorder, AudioUtils } from 'react-native-audio';
 import RNFS from 'react-native-fs';
 import { sendAudioForTranscription } from './api';
@@ -103,3 +104,4 @@ class AudioService {
 }
 
 export default new AudioService();
+*/

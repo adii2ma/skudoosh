@@ -1,24 +1,18 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, Switch, NativeEventEmitter, NativeModules} from 'react-native';
-import AudioService from '../services/audio';
-import {getKeywordsFromDB, searchConversationsByKeyword} from '../services/api';
+import {getKeywordsFromDB, searchConversationsByKeyword, processCallRecording} from '../services/api';
 import {startPythonServer, isServerRunning} from '../services/pythonServer';
+import callRecorderService from '../services/callRecorder';
 
 const VoiceScreen = ({ navigation }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [continuousMode, setContinuousMode] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking...');
   const [keywords, setKeywords] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [results, setResults] = useState([]);
+  const [isRecording, setIsRecording] = useState(false);
 
   useEffect(() => {
-    // Initialize audio service
-    const setupAudio = async () => {
-      await AudioService.initialize();
-    };
-    
     // Check and start Python server
     const initServer = async () => {
       try {
@@ -36,6 +30,16 @@ const VoiceScreen = ({ navigation }) => {
       }
     };
 
+    // Initialize call recorder
+    const initCallRecorder = async () => {
+      try {
+        await callRecorderService.initialize();
+        console.log('Call recorder initialized');
+      } catch (error) {
+        console.error('Error initializing call recorder:', error);
+      }
+    };
+
     // Fetch initial keywords
     const fetchKeywords = async () => {
       try {
@@ -48,62 +52,32 @@ const VoiceScreen = ({ navigation }) => {
       }
     };
 
-    // Set up background recording event listeners
-    const eventEmitter = new NativeEventEmitter(NativeModules.RCTDeviceEventEmitter);
-    const startBackgroundSubscription = eventEmitter.addListener('startBackgroundRecording', () => {
-      if (!isRecording) {
-        handleToggleRecording();
-      }
-    });
-    const stopBackgroundSubscription = eventEmitter.addListener('stopBackgroundRecording', () => {
-      if (isRecording) {
-        handleToggleRecording();
-      }
-    });
-
-    setupAudio();
     initServer();
+    initCallRecorder();
     fetchKeywords();
 
-    // Set callback for transcription results
-    AudioService.setOnTranscriptionCallback((result) => {
+    // Set up call recording event listeners
+    const eventEmitter = new NativeEventEmitter(NativeModules.CallRecorderModule);
+    const startRecordingSubscription = eventEmitter.addListener('startCallRecording', () => {
+      setIsRecording(true);
+    });
+    const stopRecordingSubscription = eventEmitter.addListener('stopCallRecording', () => {
+      setIsRecording(false);
+    });
+
+    // Set callback for call recording results
+    callRecorderService.setOnCallRecordingCallback((result) => {
       setResults(prev => [...prev, result]);
       fetchKeywords(); // Refresh keywords after new detection
     });
 
     return () => {
       // Clean up
-      AudioService.stopRecording();
-      startBackgroundSubscription.remove();
-      stopBackgroundSubscription.remove();
+      startRecordingSubscription.remove();
+      stopRecordingSubscription.remove();
+      callRecorderService.cleanup();
     };
   }, []);
-
-  const handleToggleRecording = async () => {
-    try {
-      if (isRecording) {
-        await AudioService.stopRecording();
-        // Stop background service
-        const intent = new Intent('STOP_RECORDING');
-        NativeModules.AudioRecordingService.startService(intent);
-      } else {
-        await AudioService.startRecording();
-        // Start background service
-        const intent = new Intent('START_RECORDING');
-        NativeModules.AudioRecordingService.startService(intent);
-      }
-      setIsRecording(!isRecording);
-    } catch (error) {
-      console.error('Error toggling recording:', error);
-    }
-  };
-
-  const handleToggleContinuous = (value) => {
-    setContinuousMode(value);
-    if (value && !isRecording) {
-      handleToggleRecording();
-    }
-  };
 
   const handleSearch = async () => {
     if (!searchKeyword.trim()) return;
@@ -130,32 +104,11 @@ const VoiceScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Voice Monitoring</Text>
+      <Text style={styles.title}>Call Recording</Text>
       <Text style={styles.serverStatus}>Server Status: {serverStatus}</Text>
-      
-      <View style={styles.controlsContainer}>
-        <TouchableOpacity 
-          style={[styles.button, isRecording ? styles.stopButton : styles.startButton]} 
-          onPress={handleToggleRecording}
-        >
-          <Text style={styles.buttonText}>
-            {isRecording ? 'Stop Recording' : 'Start Recording'}
-          </Text>
-        </TouchableOpacity>
-        
-        <View style={styles.continuousContainer}>
-          <Text>Continuous Mode:</Text>
-          <Switch value={continuousMode} onValueChange={handleToggleContinuous} />
-        </View>
-      </View>
-      
-      {/* Add Logs button */}
-      <TouchableOpacity 
-        style={styles.logsButton} 
-        onPress={navigateToLogs}
-      >
-        <Text style={styles.buttonText}>View Logs</Text>
-      </TouchableOpacity>
+      <Text style={styles.recordingStatus}>
+        Recording Status: {isRecording ? 'Active' : 'Inactive'}
+      </Text>
       
       <View style={styles.searchContainer}>
         <TextInput
@@ -217,35 +170,14 @@ const styles = StyleSheet.create({
   serverStatus: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 16,
+    marginBottom: 8,
     textAlign: 'center',
   },
-  controlsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  button: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  startButton: {
-    backgroundColor: '#4CAF50',
-  },
-  stopButton: {
-    backgroundColor: '#F44336',
-  },
-  buttonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  continuousContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  recordingStatus: {
+    fontSize: 14,
+    color: '#2196F3',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -307,14 +239,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
     textAlign: 'right',
-  },
-  // Add logs button style
-  logsButton: {
-    backgroundColor: '#673AB7',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
   },
 });
 

@@ -1,3 +1,4 @@
+/*
 import Voice from '@react-native-voice/voice';
 import {sendAudioForTranscription} from './api';
 
@@ -118,3 +119,4 @@ class VoiceService {
 }
 
 export default new VoiceService();
+*/
