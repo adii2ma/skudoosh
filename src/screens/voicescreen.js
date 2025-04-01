@@ -1,11 +1,11 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, FlatList, TextInput, Switch} from 'react-native';
-import VoiceService from '../services/voice';
+import AudioService from '../services/audio';
 import {getKeywordsFromDB, searchConversationsByKeyword} from '../services/api';
 import {startPythonServer, isServerRunning} from '../services/pythonServer';
 
 const VoiceScreen = ({ navigation }) => {
-  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [continuousMode, setContinuousMode] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking...');
   const [keywords, setKeywords] = useState([]);
@@ -14,6 +14,11 @@ const VoiceScreen = ({ navigation }) => {
   const [results, setResults] = useState([]);
 
   useEffect(() => {
+    // Initialize audio service
+    const setupAudio = async () => {
+      await AudioService.initialize();
+    };
+    
     // Check and start Python server
     const initServer = async () => {
       try {
@@ -43,39 +48,40 @@ const VoiceScreen = ({ navigation }) => {
       }
     };
 
+    setupAudio();
     initServer();
     fetchKeywords();
 
-    // Set callback for keyword detection
-    VoiceService.setOnKeywordsDetectedCallback((result) => {
+    // Set callback for transcription results
+    AudioService.setOnTranscriptionCallback((result) => {
       setResults(prev => [...prev, result]);
       fetchKeywords(); // Refresh keywords after new detection
     });
 
     return () => {
-      // Cleanup
-      VoiceService.setOnKeywordsDetectedCallback(null);
+      // Clean up
+      AudioService.stopRecording();
     };
   }, []);
 
-  const handleToggleListen = async () => {
+  const handleToggleRecording = async () => {
     try {
-      if (isListening) {
-        await VoiceService.stopListening();
+      if (isRecording) {
+        await AudioService.stopRecording();
       } else {
-        await VoiceService.startListening();
+        await AudioService.startRecording();
       }
-      setIsListening(!isListening);
+      setIsRecording(!isRecording);
     } catch (error) {
-      console.error('Error toggling voice service:', error);
+      console.error('Error toggling recording:', error);
     }
   };
 
   const handleToggleContinuous = (value) => {
     setContinuousMode(value);
-    VoiceService.toggleContinuousMode(value);
-    if (value && !isListening) {
-      setIsListening(true);
+    // For continuous mode, we'll rely on the chunk-based recording in AudioService
+    if (value && !isRecording) {
+      handleToggleRecording();
     }
   };
 
@@ -109,11 +115,11 @@ const VoiceScreen = ({ navigation }) => {
       
       <View style={styles.controlsContainer}>
         <TouchableOpacity 
-          style={[styles.button, isListening ? styles.stopButton : styles.startButton]} 
-          onPress={handleToggleListen}
+          style={[styles.button, isRecording ? styles.stopButton : styles.startButton]} 
+          onPress={handleToggleRecording}
         >
           <Text style={styles.buttonText}>
-            {isListening ? 'Stop Listening' : 'Start Listening'}
+            {isRecording ? 'Stop Recording' : 'Start Recording'}
           </Text>
         </TouchableOpacity>
         

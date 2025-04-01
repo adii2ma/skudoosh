@@ -4,10 +4,13 @@ import axios from 'axios';
 // In real device, this will point to the Flask server running within the app
 const BASE_URL = 'http://10.0.2.2:5000/api';
 
-export const sendAudioForTranscription = async (text) => {
+export const sendAudioForTranscription = async (audioData) => {
   try {
+    // Send the base64 encoded audio data
     const response = await axios.post(`${BASE_URL}/transcribe`, {
-      text: text,
+      audio: audioData, // This is already base64 encoded
+      format: 'wav',
+      sampleRate: 16000,
     });
     console.log('Transcription Result:', response.data);
     return response.data;

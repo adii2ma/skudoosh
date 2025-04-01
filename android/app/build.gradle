@@ -99,6 +99,14 @@ android {
                 install "tensorflow-lite"
                 // Note: fast_whisper would need to be installed here as well,
                 // but it's complex with dependencies. Consider using a pre-built model.
+
+                // Add Insanely Fast Whisper and its dependencies
+                install "insanely-fast-whisper==0.0.15"
+                install "torch==2.0.1"
+                install "transformers>=4.35.0"
+                install "optimum>=1.12.0"
+                install "accelerate>=0.20.3"
+                // We won't include flash-attn by default as it's complex to build for mobile
             }
         }
     }
@@ -133,4 +141,8 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Add dependencies for audio recording
+    implementation 'com.facebook.react:react-native-audio:4.3.0'
+    implementation 'com.facebook.react:react-native-fs:2.20.0'
 }

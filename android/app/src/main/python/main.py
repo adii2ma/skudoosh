@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from utils import transcribe_audio, store_conversation_and_keywords, get_keywords, search_conversations_by_keyword, filter_logs_by_date_and_keyword
 from db import initialize_db
 import os
+import base64
 import threading
 import time
 
@@ -14,19 +15,31 @@ initialize_db()
 def transcribe():
     try:
         data = request.json
-        text = data.get('text', '')
         
-        if not text:
-            return jsonify({'error': 'No text provided'}), 400
+        # Check if we're receiving audio data
+        if 'audio' in data:
+            # Decode base64 audio data
+            audio_data = base64.b64decode(data['audio'])
             
-        full_text, keywords = transcribe_audio(text)
-        success = store_conversation_and_keywords(full_text, keywords)
-        
-        return jsonify({
-            'success': success,
-            'text': full_text,
-            'keywords': keywords
-        })
+            # Log information about the incoming audio
+            print(f"Received audio data: {len(audio_data)} bytes")
+            print(f"Format: {data.get('format', 'unknown')}")
+            print(f"Sample Rate: {data.get('sampleRate', 'unknown')}")
+            
+            # Process with Whisper
+            full_text, keywords = transcribe_audio(audio_data)
+            
+            # Store results
+            success = store_conversation_and_keywords(full_text, keywords)
+            
+            return jsonify({
+                'success': success,
+                'text': full_text,
+                'keywords': keywords
+            })
+        else:
+            return jsonify({'error': 'No audio data provided'}), 400
+            
     except Exception as e:
         print(f"Error in transcribe endpoint: {e}")
         return jsonify({'error': str(e)}), 500

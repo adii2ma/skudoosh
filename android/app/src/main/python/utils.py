@@ -1,6 +1,8 @@
 import sqlite3
 import os
 import json
+import tempfile
+import subprocess
 from datetime import datetime
 import tensorflow as tf
 import numpy as np
@@ -10,12 +12,88 @@ from db import get_db_path
 
 MODEL_FILE = 'model.tflite'
 
-def transcribe_audio(text):
-    # In a real implementation, this would send the audio to Whisper API
-    # For now, we'll simulate by just using the text directly
-    print(f"Transcribed text: {text}")
-    keywords = detect_keywords(text)
-    return text, keywords
+def save_audio_to_temp_file(audio_data):
+    """
+    Save audio data to a temporary file for processing with Whisper.
+    
+    Args:
+        audio_data (bytes): Raw audio data
+        
+    Returns:
+        str: Path to the temporary file
+    """
+    temp_file = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+    temp_file.write(audio_data)
+    temp_file.close()
+    return temp_file.name
+
+def transcribe_audio_with_whisper(audio_file_path):
+    """
+    Use Insanely Fast Whisper to transcribe audio.
+    
+    Args:
+        audio_file_path (str): Path to the audio file
+        
+    Returns:
+        str: Transcribed text
+    """
+    try:
+        # Run insanely-fast-whisper as a subprocess
+        cmd = [
+            "insanely-fast-whisper",
+            "--file-name", audio_file_path,
+            "--model-name", "distil-whisper/large-v2",  # Using a smaller model for mobile
+            "--batch-size", "4",
+            "--device-id", "cpu",
+            "--transcript-path", "temp_transcript.json"
+        ]
+        
+        subprocess.run(cmd, check=True, capture_output=True)
+        
+        # Read the transcript from the output file
+        with open("temp_transcript.json", "r") as f:
+            transcript_data = json.load(f)
+        
+        # Extract text from the transcript
+        transcribed_text = transcript_data.get("text", "")
+        
+        # Clean up the temporary transcript file
+        if os.path.exists("temp_transcript.json"):
+            os.remove("temp_transcript.json")
+            
+        return transcribed_text
+    except Exception as e:
+        print(f"Error in Whisper transcription: {e}")
+        return f"Transcription error: {str(e)}"
+
+def transcribe_audio(audio_data):
+    """
+    Transcribe audio using Insanely Fast Whisper.
+    
+    Args:
+        audio_data: Raw audio data (base64 decoded)
+        
+    Returns:
+        tuple: (transcribed_text, keywords)
+    """
+    try:
+        # Save audio to a temporary file
+        audio_file = save_audio_to_temp_file(audio_data)
+        
+        # Transcribe using Whisper
+        transcribed_text = transcribe_audio_with_whisper(audio_file)
+        
+        # Clean up temporary file
+        if os.path.exists(audio_file):
+            os.remove(audio_file)
+        
+        # Extract keywords from transcribed text
+        keywords = detect_keywords(transcribed_text)
+        
+        return transcribed_text, keywords
+    except Exception as e:
+        print(f"Error in transcription: {e}")
+        return f"Transcription error: {str(e)}", []
 
 def detect_keywords(text):
     try:
