@@ -38,3 +38,18 @@ export const searchConversationsByKeyword = async (keyword) => {
     throw error;
   }
 };
+
+export const getFilteredLogs = async (startDate, endDate, keyword) => {
+  try {
+    const params = {};
+    if (startDate) params.start_date = startDate;
+    if (endDate) params.end_date = endDate;
+    if (keyword) params.keyword = keyword;
+    
+    const response = await axios.get(`${BASE_URL}/logs`, { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching filtered logs:', error);
+    throw error;
+  }
+};

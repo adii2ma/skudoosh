@@ -4,7 +4,7 @@ import VoiceService from '../services/voice';
 import {getKeywordsFromDB, searchConversationsByKeyword} from '../services/api';
 import {startPythonServer, isServerRunning} from '../services/pythonServer';
 
-const VoiceScreen = () => {
+const VoiceScreen = ({ navigation }) => {
   const [isListening, setIsListening] = useState(false);
   const [continuousMode, setContinuousMode] = useState(false);
   const [serverStatus, setServerStatus] = useState('checking...');
@@ -97,6 +97,11 @@ const VoiceScreen = () => {
     handleSearch();
   };
 
+  // Add navigation to logs screen
+  const navigateToLogs = () => {
+    navigation.navigate('Logs');
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Voice Monitoring</Text>
@@ -117,6 +122,14 @@ const VoiceScreen = () => {
           <Switch value={continuousMode} onValueChange={handleToggleContinuous} />
         </View>
       </View>
+      
+      {/* Add Logs button */}
+      <TouchableOpacity 
+        style={styles.logsButton} 
+        onPress={navigateToLogs}
+      >
+        <Text style={styles.buttonText}>View Logs</Text>
+      </TouchableOpacity>
       
       <View style={styles.searchContainer}>
         <TextInput
@@ -268,6 +281,14 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
     textAlign: 'right',
+  },
+  // Add logs button style
+  logsButton: {
+    backgroundColor: '#673AB7',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
   },
 });
 
